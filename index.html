@@ -27,6 +27,12 @@ footer{color:var(--muted);font-size:12px;margin-top:20px}.empty{color:var(--mute
 <label class="field">Plan start date<input id="startDate" type="date"></label>
 <button id="todayBtn">Go to today</button><button id="resetBtn">Reset progress</button>
 </div>
+<div class="controls" style="margin-top:12px">
+<label class="field" style="flex:1;min-width:220px">GitHub fine-grained PAT<input id="patInput" type="password" autocomplete="off" placeholder="Paste your replacement token here"></label>
+<button class="primary" id="connectBtn">Connect & load cloud progress</button>
+<span id="cloudStatus" class="tag" role="status">Not connected — progress is held only in this tab</span>
+</div>
+<p class="note">Your token is kept in memory only and is never written into this website or browser storage. Reconnect after refreshing the page. Cloud file: inviswizard/Backup/progress.json.</p>
 <div class="stats">
 <div class="stat"><b id="overall">0%</b><span>Overall completion</span></div>
 <div class="stat"><b id="finished">0/90</b><span>Tasks completed</span></div>
@@ -39,7 +45,7 @@ footer{color:var(--muted);font-size:12px;margin-top:20px}.empty{color:var(--mute
 <main class="panel">
 <div class="datehead"><div><div class="eyebrow" id="dayLabel">DAY 1</div><h2 id="dateLabel">—</h2></div><div><button id="prevBtn">←</button> <button id="nextBtn">→</button></div></div>
 <div id="tasks"></div>
-<p class="note">Tick a subject only after completing its concepts and practice. Your checkmarks are saved automatically in this browser using local storage. They do not sync between devices.</p>
+<p class="note">Tick a subject only after completing its concepts and practice. Your checkmarks are saved automatically in this browser using GitHub cloud storage after you connect. They sync when you reconnect on another device.</p>
 </main>
 </div>
 <footer>Study rule: learn the concept → solve basic examples → attempt JEE Main PYQs → record mistakes. Chapter weightage is historical guidance, not a fixed NTA guarantee.</footer>
@@ -78,10 +84,47 @@ const plan = [
 ["Mock analysis + weak-topic repair","Chemistry NCERT + error revision","Maths formula revision + timed PYQs"]
 ];
 const subjects=["Physics","Chemistry","Mathematics"];
-const key="jee30day-v1";
-let saved={};
-try{saved=JSON.parse(localStorage.getItem(key)||"{}")}catch(e){saved={}}
+let saved={startDate:"2026-11-02"};
 let selected=0;
+let githubToken="";
+let cloudSha=null;
+let saveQueue=Promise.resolve();
+const cloudStatus=$("cloudStatus");
+function setCloudStatus(message){cloudStatus.textContent=message}
+function encodeBase64(text){const bytes=new TextEncoder().encode(text);let binary="";bytes.forEach(b=>binary+=String.fromCharCode(b));return btoa(binary)}
+function decodeBase64(base64){const binary=atob(base64.replace(/\\n/g,""));const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));return new TextDecoder().decode(bytes)}
+async function githubRequest(method,body){
+ const url="https://api.github.com/repos/inviswizard/Backup/contents/progress.json";
+ const response=await fetch(url,{method,headers:{Authorization:"Bearer "+githubToken,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.message||("GitHub API error "+response.status));
+ return data;
+}
+async function saveCloud(snapshot){
+ if(!githubToken)return;
+ const body={message:"Update JEE study tracker progress",content:encodeBase64(JSON.stringify(snapshot,null,2)),branch:"main"};
+ if(cloudSha)body.sha=cloudSha;
+ const result=await githubRequest("PUT",body);
+ cloudSha=result.content.sha;
+ setCloudStatus("Connected · cloud progress saved");
+}
+function persist(){
+ render();
+ if(!githubToken){setCloudStatus("Not connected — connect to save progress to Backup");return}
+ const snapshot=JSON.parse(JSON.stringify(saved));
+ saveQueue=saveQueue.then(()=>saveCloud(snapshot)).catch(err=>setCloudStatus("Cloud save failed: "+err.message));
+}
+async function connectCloud(){
+ const token=$("patInput").value.trim();
+ if(!token){setCloudStatus("Paste your replacement fine-grained PAT first");return}
+ githubToken=token;
+ $("connectBtn").disabled=true;setCloudStatus("Connecting to GitHub…");
+ try{
+  try{const data=await githubRequest("GET");cloudSha=data.sha;saved=JSON.parse(decodeBase64(data.content));if(!saved.startDate)saved.startDate="2026-11-02";dateInput.value=saved.startDate;setCloudStatus("Connected · progress loaded from Backup");render()}
+  catch(err){if(!String(err.message).includes("Not Found"))throw err;cloudSha=null;await saveCloud(saved);setCloudStatus("Connected · created Backup/progress.json")}
+ }catch(err){githubToken="";cloudSha=null;setCloudStatus("Connection failed: "+err.message+". Check token access and repo permissions.")}
+ finally{$("connectBtn").disabled=false}
+}
 const $=id=>document.getElementById(id);
 const dateInput=$("startDate");
 function isoDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
@@ -118,12 +161,13 @@ const today=new Date();today.setHours(12,0,0,0);const start=parseDate(dateInput.
 $("remaining").textContent=Math.max(0,30-Math.max(0,elapsed));
 $("progress").style.width=(count/90*100)+"%";
 }
-if(!saved.startDate||saved.startDate==="2026-11-01"){saved.startDate="2026-11-02";localStorage.setItem(key,JSON.stringify(saved))}dateInput.value=saved.startDate;
-dateInput.addEventListener("change",()=>{if(dateInput.value){saved.startDate=dateInput.value;localStorage.setItem(key,JSON.stringify(saved));selected=0;render()}});
+if(!saved.startDate)saved.startDate="2026-11-02";dateInput.value=saved.startDate;
+dateInput.addEventListener("change",()=>{if(dateInput.value){saved.startDate=dateInput.value;selected=0;persist()}});
 $("prevBtn").addEventListener("click",()=>{selected=Math.max(0,selected-1);render()});
 $("nextBtn").addEventListener("click",()=>{selected=Math.min(29,selected+1);render()});
 $("todayBtn").addEventListener("click",()=>{const delta=Math.floor((new Date().setHours(12,0,0,0)-parseDate(dateInput.value))/86400000);selected=Math.max(0,Math.min(29,delta));render()});
-$("resetBtn").addEventListener("click",()=>{if(confirm("Clear all 30-day checkmarks? Your start date will stay the same.")){saved={startDate:dateInput.value};persist();selected=0}});
+$("resetBtn").addEventListener("click",()=>{if(confirm("Clear all 30-day checkmarks in your cloud progress? Your start date will stay the same.")){saved={startDate:dateInput.value};selected=0;persist()}});
+$("connectBtn").addEventListener("click",connectCloud);
 render();
 </script>
 </body></html>
