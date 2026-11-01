@@ -118,7 +118,7 @@ const today=new Date();today.setHours(12,0,0,0);const start=parseDate(dateInput.
 $("remaining").textContent=Math.max(0,30-Math.max(0,elapsed));
 $("progress").style.width=(count/90*100)+"%";
 }
-dateInput.value=saved.startDate||isoDate(new Date());
+if(!saved.startDate||saved.startDate==="2026-11-01"){saved.startDate="2026-11-02";localStorage.setItem(key,JSON.stringify(saved))}dateInput.value=saved.startDate;
 dateInput.addEventListener("change",()=>{if(dateInput.value){saved.startDate=dateInput.value;localStorage.setItem(key,JSON.stringify(saved));selected=0;render()}});
 $("prevBtn").addEventListener("click",()=>{selected=Math.max(0,selected-1);render()});
 $("nextBtn").addEventListener("click",()=>{selected=Math.min(29,selected+1);render()});
