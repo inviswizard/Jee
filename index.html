@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>JEE 30-Day Sprint</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#111c2e;--panel2:#17243a;--line:#293951;--text:#edf3fb;--muted:#9aabc2;--blue:#7db7ff;--green:#63d6a0;--amber:#ffd27a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172a43 0,#0b1220 52%);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1050px;margin:auto;padding:22px 16px 60px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.eyebrow{color:var(--blue);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:11px}h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0}h2{font-size:19px;margin:0 0 12px}.sub{color:var(--muted);max-width:650px}.panel{background:rgba(17,28,46,.94);border:1px solid var(--line);border-radius:18px;padding:17px;margin-top:16px;box-shadow:0 12px 35px #0002}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:grid;gap:5px;color:var(--muted);font-size:12px}input,button{font:inherit}input[type=date]{background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:10px;border-radius:10px}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 13px;border-radius:10px;cursor:pointer}button:hover{border-color:var(--blue)}button.primary{background:#1d4c7e;border-color:#3979b9}button:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:15px}.stat{background:var(--panel2);padding:13px;border-radius:13px}.stat b{display:block;font-size:23px}.stat span{color:var(--muted);font-size:12px}.bar{height:9px;background:#26364c;border-radius:99px;overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;background:linear-gradient(90deg,#4d9fff,#63d6a0);width:0;transition:width .2s}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:16px}.days{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.day{padding:9px 3px;text-align:center;min-width:0}.day small{display:block;color:var(--muted);font-size:10px}.day.active{border-color:var(--blue);background:#1a3a5b}.day.complete{border-color:#287d5d}.day .tick{color:var(--green);font-weight:800}
+.datehead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.datehead h2{margin:0}.subject{border:1px solid var(--line);background:#142137;border-radius:13px;padding:13px;margin-top:10px}.subjecthead{display:flex;justify-content:space-between;gap:12px;align-items:center}.tag{font-size:11px;color:var(--muted)}.task{display:flex;gap:10px;align-items:flex-start;margin-top:11px}.task input{width:19px;height:19px;accent-color:#55c995;flex:none;margin-top:2px}.task label{cursor:pointer}.task.done label{text-decoration:line-through;color:#8295ac}.note{font-size:12px;color:var(--muted);margin-top:12px}.pill{display:inline-block;padding:4px 8px;border-radius:99px;background:#203a55;color:#b8d9ff;font-size:11px}
+footer{color:var(--muted);font-size:12px;margin-top:20px}.empty{color:var(--muted);padding:12px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.days{grid-template-columns:repeat(6,1fr)}}
+@media(max-width:390px){.days{grid-template-columns:repeat(5,1fr)}.wrap{padding:16px 11px 40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><div class="eyebrow">JEE Main · personal study tracker</div><h1>30-Day Sprint</h1><div class="sub">A daily Physics, Chemistry and Mathematics checklist. Choose your start date, tick off work as you finish, and your progress stays saved on this device.</div></div><span class="pill">30 days · 3 subjects</span></header>
+<section class="panel">
+<div class="controls">
+<label class="field">Plan start date<input id="startDate" type="date"></label>
+<button id="todayBtn">Go to today</button><button id="resetBtn">Reset progress</button>
+</div>
+<div class="stats">
+<div class="stat"><b id="overall">0%</b><span>Overall completion</span></div>
+<div class="stat"><b id="finished">0/90</b><span>Tasks completed</span></div>
+<div class="stat"><b id="streak">0</b><span>Days fully completed</span></div>
+<div class="stat"><b id="remaining">30</b><span>Days remaining</span></div>
+</div><div class="bar"><i id="progress"></i></div>
+</section>
+<div class="layout">
+<aside class="panel"><h2>30-day calendar</h2><div class="days" id="dayGrid"></div><p class="note">A green border means all three subjects are checked for that day. Select any day to view its tasks.</p></aside>
+<main class="panel">
+<div class="datehead"><div><div class="eyebrow" id="dayLabel">DAY 1</div><h2 id="dateLabel">—</h2></div><div><button id="prevBtn">←</button> <button id="nextBtn">→</button></div></div>
+<div id="tasks"></div>
+<p class="note">Tick a subject only after completing its concepts and practice. Your checkmarks are saved automatically in this browser using local storage. They do not sync between devices.</p>
+</main>
+</div>
+<footer>Study rule: learn the concept → solve basic examples → attempt JEE Main PYQs → record mistakes. Chapter weightage is historical guidance, not a fixed NTA guarantee.</footer>
+</div>
+<script>
+const plan = [
+["Units & Measurements","Mole Concept","Sets, Relations & Functions"],
+["Kinematics — Part 1","Atomic Structure","Complex Numbers"],
+["Kinematics — Part 2 + PYQs","Periodicity","Quadratic Equations"],
+["Laws of Motion","Chemical Bonding — Part 1","Matrices"],
+["Work, Energy & Power","Chemical Bonding — Part 2","Determinants"],
+["Rotational Motion — Part 1","GOC — Part 1","Permutations & Combinations"],
+["Rotational Motion — Part 2 + PYQs","GOC — Part 2","Binomial Theorem"],
+["Gravitation","Thermodynamics","Sequence & Series — Part 1"],
+["Properties of Solids & Liquids — Part 1","Equilibrium — Part 1","Sequence & Series — Part 2 + PYQs"],
+["Properties of Solids & Liquids — Part 2","Equilibrium — Part 2","Limits, Continuity & Differentiability — Part 1"],
+["Thermodynamics","Hydrocarbons — Part 1","Limits, Continuity & Differentiability — Part 2"],
+["Kinetic Theory of Gases","Hydrocarbons — Part 2","Integral Calculus — Part 1"],
+["Oscillations (SHM)","Redox & Electrochemistry — Part 1","Integral Calculus — Part 2"],
+["Waves + PYQs","Redox & Electrochemistry — Part 2","Integral Calculus — Part 3"],
+["Electrostatics — Part 1","Coordination Compounds — Part 1","Differential Equations"],
+["Electrostatics — Part 2","Coordination Compounds — Part 2","Coordinate Geometry — Part 1"],
+["Current Electricity — Part 1","Oxygen Compounds — Part 1","Coordinate Geometry — Part 2"],
+["Current Electricity — Part 2","Oxygen Compounds — Part 2","Coordinate Geometry — Part 3"],
+["Magnetic Effects — Part 1","Solutions","Coordinate Geometry — Part 4 + PYQs"],
+["Magnetic Effects — Part 2","Chemical Kinetics","3D Geometry — Part 1"],
+["EMI","d- and f-Block","3D Geometry — Part 2"],
+["Alternating Current","p-Block","Vector Algebra — Part 1"],
+["Electromagnetic Waves","Nitrogen Compounds","Vector Algebra — Part 2"],
+["Ray Optics — Part 1","Halogens","Statistics + Probability"],
+["Ray Optics — Part 2","Purification + Practical Chemistry","Trigonometry — Part 1"],
+["Wave Optics","Biomolecules","Trigonometry — Part 2"],
+["Dual Nature + Atoms & Nuclei","Inorganic Chemistry revision + NCERT questions","Matrices, Determinants & Vectors revision"],
+["Electronic Devices + Experimental Skills","Organic Chemistry revision + PYQs","Coordinate Geometry + Calculus revision"],
+["Full JEE Main mock test","Full JEE Main mock test","Full JEE Main mock test"],
+["Mock analysis + weak-topic repair","Chemistry NCERT + error revision","Maths formula revision + timed PYQs"]
+];
+const subjects=["Physics","Chemistry","Mathematics"];
+const key="jee30day-v1";
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(key)||"{}")}catch(e){saved={}}
+let selected=0;
+const $=id=>document.getElementById(id);
+const dateInput=$("startDate");
+function isoDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function parseDate(s){const p=s.split("-").map(Number);return new Date(p[0],p[1]-1,p[2],12)}
+function dateFor(i){const d=parseDate(dateInput.value);d.setDate(d.getDate()+i);return d}
+function dateText(d){return d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+function isDone(day,sub){return !!saved[day+"-"+sub]}
+function persist(){localStorage.setItem(key,JSON.stringify(saved));render()}
+function dayCount(i){return subjects.filter((_,j)=>isDone(i,j)).length}
+function render(){
+$("dayGrid").innerHTML="";
+for(let i=0;i<30;i++){
+ const b=document.createElement("button");b.className="day"+(i===selected?" active":"")+(dayCount(i)===3?" complete":"");
+ const d=dateFor(i);b.innerHTML="<strong>"+(i+1)+"</strong><small>"+d.toLocaleDateString(undefined,{day:"numeric",month:"short"})+"</small>"+(dayCount(i)===3?'<span class="tick">✓</span>':"");
+ b.addEventListener("click",()=>{selected=i;render()});$("dayGrid").appendChild(b);
+}
+$("dayLabel").textContent="DAY "+(selected+1);
+$("dateLabel").textContent=dateText(dateFor(selected));
+$("prevBtn").disabled=selected===0;$("nextBtn").disabled=selected===29;
+$("tasks").innerHTML="";
+subjects.forEach((subject,j)=>{
+ const card=document.createElement("section");card.className="subject";
+ const head=document.createElement("div");head.className="subjecthead";
+ head.innerHTML="<strong>"+subject+"</strong><span class='tag'>"+(isDone(selected,j)?"Completed":"Not completed")+"</span>";
+ const task=document.createElement("div");task.className="task"+(isDone(selected,j)?" done":"");
+ const cb=document.createElement("input");cb.type="checkbox";cb.id="task-"+selected+"-"+j;cb.checked=isDone(selected,j);
+ cb.addEventListener("change",()=>{if(cb.checked)saved[selected+"-"+j]=true;else delete saved[selected+"-"+j];persist()});
+ const label=document.createElement("label");label.htmlFor=cb.id;label.textContent=plan[selected][j];
+ task.append(cb,label);card.append(head,task);$("tasks").appendChild(card);
+});
+let count=0,full=0;for(let i=0;i<30;i++){count+=dayCount(i);if(dayCount(i)===3)full++}
+$("overall").textContent=Math.round(count/90*100)+"%";$("finished").textContent=count+"/90";$("streak").textContent=full;
+const today=new Date();today.setHours(12,0,0,0);const start=parseDate(dateInput.value);const elapsed=Math.floor((today-start)/86400000);
+$("remaining").textContent=Math.max(0,30-Math.max(0,elapsed));
+$("progress").style.width=(count/90*100)+"%";
+}
+dateInput.value=saved.startDate||isoDate(new Date());
+dateInput.addEventListener("change",()=>{if(dateInput.value){saved.startDate=dateInput.value;localStorage.setItem(key,JSON.stringify(saved));selected=0;render()}});
+$("prevBtn").addEventListener("click",()=>{selected=Math.max(0,selected-1);render()});
+$("nextBtn").addEventListener("click",()=>{selected=Math.min(29,selected+1);render()});
+$("todayBtn").addEventListener("click",()=>{const delta=Math.floor((new Date().setHours(12,0,0,0)-parseDate(dateInput.value))/86400000);selected=Math.max(0,Math.min(29,delta));render()});
+$("resetBtn").addEventListener("click",()=>{if(confirm("Clear all 30-day checkmarks? Your start date will stay the same.")){saved={startDate:dateInput.value};persist();selected=0}});
+render();
+</script>
+</body></html>
