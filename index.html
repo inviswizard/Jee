@@ -98,13 +98,13 @@ function decodeBase64(value){const binary=atob(value.replace(/\\n/g,""));const b
 async function githubRequest(method,body){
  const response=await fetch("https://api.github.com/repos/inviswizard/Backup/contents/progress.json",{method,headers:{Authorization:"Bearer "+githubToken,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});
  const data=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(data.message||("GitHub API error "+response.status));
+ if(!response.ok){const err=new Error(data.message||("GitHub API error "+response.status));err.status=response.status;throw err}
  return data;
 }
 async function saveCloud(snapshot){
  if(!githubToken)return;
- const body={message:"Update JEE study tracker progress",content:encodeBase64(JSON.stringify(snapshot,null,2)),branch:"main"};
- if(cloudSha)body.sha=cloudSha;
+ const body={message:"Update JEE study tracker progress",content:encodeBase64(JSON.stringify(snapshot,null,2))};
+ if(cloudSha){body.sha=cloudSha;body.branch="main"}
  const result=await githubRequest("PUT",body);cloudSha=result.content.sha;
  setCloudStatus("Connected · cloud progress saved");
 }
@@ -120,7 +120,11 @@ async function connectCloud(){
  githubToken=token;$("connectBtn").disabled=true;setCloudStatus("Connecting to GitHub…");
  try{
   try{const data=await githubRequest("GET");cloudSha=data.sha;saved=JSON.parse(decodeBase64(data.content));if(!saved.startDate)saved.startDate="2026-11-02";dateInput.value=saved.startDate;setCloudStatus("Connected · progress loaded from Backup");render()}
-  catch(err){if(!String(err.message).includes("Not Found"))throw err;cloudSha=null;await saveCloud(saved);setCloudStatus("Connected · created Backup/progress.json")}
+  catch(err){
+   const emptyRepo=String(err.message).toLowerCase().includes("repository is empty");
+   if(err.status!==404&&!emptyRepo)throw err;
+   cloudSha=null;await saveCloud(saved);setCloudStatus("Connected · initialised Backup/progress.json");
+  }
  }catch(err){githubToken="";cloudSha=null;setCloudStatus("Connection failed: "+err.message+". Check token access and repo permissions.")}
  finally{$("connectBtn").disabled=false}
 }
